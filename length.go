@@ -15,7 +15,7 @@ func Length(src io.ReadSeeker) (time.Duration, error) {
 	duration := time.Duration(0)
 
 	for frames.Next() {
-		duration += frames.Header().Duration()
+		duration += frames.Header().Duration
 	}
 
 	return duration, frames.Error()

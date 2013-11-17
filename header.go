@@ -24,6 +24,10 @@ type (
 		CopyRight       bool
 		Original        bool
 		Emphasis        Emphasis
+
+		Size     int64
+		Samples  int
+		Duration time.Duration
 	}
 )
 
@@ -100,6 +104,10 @@ func init() {
 }
 
 func (this *FrameHeader) Parse(bs []byte) error {
+	this.Size = 0
+	this.Samples = 0
+	this.Duration = 0
+
 	if len(bs) < 4 {
 		return fmt.Errorf("not enough bytes")
 	}
@@ -150,15 +158,19 @@ func (this *FrameHeader) Parse(bs []byte) error {
 		return fmt.Errorf("reserved emphasis")
 	}
 
+	this.Size = this.size()
+	this.Samples = this.samples()
+	this.Duration = this.duration()
+
 	return nil
 }
 
-func (this *FrameHeader) Samples() int {
+func (this *FrameHeader) samples() int {
 	return samplesPerFrame[this.Version][this.Layer]
 }
 
-func (this *FrameHeader) Size() int64 {
-	bps := float64(this.Samples()) / 8
+func (this *FrameHeader) size() int64 {
+	bps := float64(this.samples()) / 8
 	fsize := (bps * float64(this.Bitrate)) / float64(this.SampleRate)
 	if this.Pad {
 		fsize += float64(slotSize[this.Layer])
@@ -166,7 +178,7 @@ func (this *FrameHeader) Size() int64 {
 	return int64(fsize)
 }
 
-func (this *FrameHeader) Duration() time.Duration {
-	ms := (1000 / float64(this.SampleRate)) * float64(this.Samples())
+func (this *FrameHeader) duration() time.Duration {
+	ms := (1000 / float64(this.SampleRate)) * float64(this.samples())
 	return time.Duration(time.Duration(float64(time.Millisecond) * ms))
 }

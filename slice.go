@@ -1,7 +1,7 @@
 package mp3
 
 import (
-	"fmt"
+	//"fmt"
 	"github.com/badgerodon/ioutil"
 	"io"
 	"time"
@@ -10,39 +10,37 @@ import (
 func Slice(src io.ReadSeeker, cutPoints ...time.Duration) ([]io.ReadSeeker, error) {
 	pieces := make([]io.ReadSeeker, 0, len(cutPoints)+1)
 
-	_, err := src.Seek(0, 0)
+	stripped, err := Stripped(src)
 	if err != nil {
-		return nil, fmt.Errorf("failed to seek src to beginning: %v", err)
+		return nil, err
 	}
+
+	start := stripped.Offset()
+	end := stripped.Offset() + stripped.Length()
 
 	frames, err := GetFrames(src)
 	if err != nil {
 		return nil, err
 	}
 
-	length, err := src.Seek(0, 2)
-	if err != nil {
-		return nil, fmt.Errorf("failed to seek src to end: %v", err)
-	}
-
 	var elapsed time.Duration
-	var lastOffset int64
+	lastOffset := start
 	for frames.Next() {
 		if len(cutPoints) == 0 {
 			break
 		}
 
-		elapsed += frames.Header().Duration()
+		elapsed += frames.Header().Duration
 
 		if cutPoints[0] <= elapsed {
-			piece := ioutil.NewSectionReader(src, lastOffset, frames.Offset()-lastOffset)
+			piece := ioutil.NewSectionReader(src, lastOffset, frames.Offset()+frames.Header().Size-lastOffset)
 			pieces = append(pieces, piece)
-			lastOffset = frames.Offset()
+			lastOffset = frames.Offset() + frames.Header().Size
 			cutPoints = cutPoints[1:]
 		}
 	}
 
-	pieces = append(pieces, ioutil.NewSectionReader(src, lastOffset, length-lastOffset))
+	pieces = append(pieces, ioutil.NewSectionReader(src, lastOffset, end-lastOffset))
 
 	return pieces, frames.Error()
 }

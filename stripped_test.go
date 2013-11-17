@@ -52,4 +52,9 @@ func TestStripped(t *testing.T) {
 		t.Errorf("Expected %v bytes, got %v", 30406, len(bs))
 	}
 
+	limited, err = Stripped(limited)
+	if err != nil {
+		t.Error(err)
+	}
+
 }

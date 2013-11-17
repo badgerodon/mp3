@@ -1,6 +1,7 @@
 package mp3
 
 import (
+	"fmt"
 	"github.com/badgerodon/ioutil"
 	"io"
 	"sort"
@@ -20,7 +21,7 @@ func (this durationSorter) Less(i, j int) bool {
 }
 
 // Take a source MP3 and insert all the splice members into it (at the specified durations)
-func Splice(src io.ReadSeeker, splice map[time.Duration]io.ReadSeeker) (io.ReadSeeker, error) {
+func Splice(src io.ReadSeeker, splice map[time.Duration]io.ReadSeeker) (*ioutil.MultiReadSeeker, error) {
 	// Get the times
 	spliceTimes := []time.Duration{}
 	for k, _ := range splice {
@@ -31,13 +32,17 @@ func Splice(src io.ReadSeeker, splice map[time.Duration]io.ReadSeeker) (io.ReadS
 	// Slice up the src into len(splice)+1 pieces
 	sliced, err := Slice(src, spliceTimes...)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("error slicing src: %v", err)
 	}
 
 	// Insert splice members between the slices
-	pieces := []io.ReadSeeker{}
+	pieces := []io.ReadSeeker{sliced[0]}
 	for i := 1; i < len(sliced); i++ {
-		pieces = append(pieces, sliced[i], splice[spliceTimes[i-1]])
+		stripped, err := Stripped(splice[spliceTimes[i-1]])
+		if err != nil {
+			return nil, err
+		}
+		pieces = append(pieces, stripped, sliced[i])
 	}
 
 	// Treat all the pieces as one big ReadSeeker

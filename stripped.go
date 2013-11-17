@@ -56,8 +56,8 @@ func getFirstRealFrameOffset(src io.ReadSeeker) (int64, error) {
 		return 0, err
 	}
 
-	if xing.Parse(bs[:int(hdr.Size())]) {
-		return off + hdr.Size(), nil
+	if xing.Parse(bs[:int(hdr.Size)]) {
+		return off + hdr.Size, nil
 	}
 
 	return off, nil
@@ -66,7 +66,7 @@ func getFirstRealFrameOffset(src io.ReadSeeker) (int64, error) {
 func getLastFrameEnd(src io.ReadSeeker) (int64, error) {
 	end, err := src.Seek(-128, 2)
 	if err != nil {
-		return 0, err
+		return 0, nil
 	}
 
 	bs := make([]byte, 3)

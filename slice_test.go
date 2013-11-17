@@ -1,6 +1,7 @@
 package mp3
 
 import (
+	"github.com/badgerodon/ioutil"
 	"os"
 	"testing"
 	"time"
@@ -33,21 +34,49 @@ func TestSlice(t *testing.T) {
 		t.Errorf("Expected no error, got: %v", err)
 	}
 	if !nearlyEqual(len1, time.Second) {
-		t.Errorf("Expected the first slice to be %v, got %v", time.Second, len1)
+		t.Errorf("Expected %v to be %v, got %v", slices[0], time.Second, len1)
 	}
 	len2, err := Length(slices[1])
 	if err != nil {
-		t.Errorf("Expected no error, got: %v", err)
+		t.Errorf("Expected no error for %v, got: %v", slices[1], err)
 	}
 	if !nearlyEqual(len2, time.Second) {
-		t.Errorf("Expected the second slice to be %v, got %v", time.Second, len2)
+		t.Errorf("Expected %v to be %v, got %v", slices[1], time.Second, len2)
 	}
 	len3, err := Length(slices[2])
 	if err != nil {
-		t.Errorf("Expected no error, got: %v", err)
+		t.Errorf("Expected no error for %v, got: %v", slices[2], err)
 	}
 	if !nearlyEqual(len3, 3*time.Second) {
 		t.Errorf("Expected the third slice to be %v, got %v", 3*time.Second, len3)
+	}
+
+}
+
+func TestSlicedAndConcatenated(t *testing.T) {
+	f, err := os.Open("440hz.mp3")
+	if err != nil {
+		t.Fatalf("Error opening sample file: %v", err)
+	}
+	defer f.Close()
+
+	slices, err := Slice(f, time.Second, 2*time.Second, 3*time.Second)
+	if err != nil {
+		t.Fatalf("Expected no error, got: %v", err)
+	}
+
+	concatenated := ioutil.NewMultiReadSeeker(slices...)
+
+	l1, err := Length(f)
+	if err != nil {
+		t.Fatalf("Expected no error, got: %v", err)
+	}
+	l2, err := Length(concatenated)
+	if err != nil {
+		t.Fatalf("Expected no error, got: %v", err)
+	}
+	if l1 != l2 {
+		t.Errorf("Expected concatenated (%v) to be the same length as original (%v)", l2, l1)
 	}
 
 }

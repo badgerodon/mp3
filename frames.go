@@ -22,7 +22,7 @@ func GetFrames(src io.ReadSeeker) (*Frames, error) {
 	}
 	return &Frames{
 		src:    stripped,
-		offset: 0,
+		offset: stripped.Offset(),
 	}, nil
 }
 
@@ -30,12 +30,15 @@ func (this *Frames) Next() bool {
 	var err error
 	if this.count > 0 {
 		// skip to next frame
-		this.offset, err = this.src.Seek(this.offset+this.header.Size(), 0)
-		if err != nil {
-			this.err = fmt.Errorf("premature end of frame: %v", err)
-			return false
-		}
+		this.offset, err = this.src.Seek(this.header.Size-4, 1)
+	} else {
+		this.offset, err = this.src.Seek(0, 0)
 	}
+	if err != nil {
+		this.err = fmt.Errorf("premature end of frame: %v", err)
+		return false
+	}
+
 	bs := make([]byte, 4)
 	_, err = io.ReadAtLeast(this.src, bs, 4)
 	if err != nil {
@@ -56,7 +59,7 @@ func (this *Frames) Header() *FrameHeader {
 }
 
 func (this *Frames) Offset() int64 {
-	return this.src.Offset() + this.offset
+	return this.offset + this.src.Offset()
 }
 
 func (this *Frames) Error() error {
