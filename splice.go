@@ -35,9 +35,9 @@ func Splice(src io.ReadSeeker, splice map[time.Duration]io.ReadSeeker) (io.ReadS
 	}
 
 	// Insert splice members between the slices
-	pieces := []io.ReadSeeker{sliced[0]}
+	pieces := []io.ReadSeeker{}
 	for i := 1; i < len(sliced); i++ {
-		pieces = append(pieces, splice[spliceTimes[i-1]], pieces[i])
+		pieces = append(pieces, sliced[i], splice[spliceTimes[i-1]])
 	}
 
 	// Treat all the pieces as one big ReadSeeker

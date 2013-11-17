@@ -1,6 +1,7 @@
 package mp3
 
 import (
+	"fmt"
 	"time"
 )
 
@@ -98,37 +99,37 @@ func init() {
 	samplesPerFrame[MPEG25] = samplesPerFrame[MPEG2]
 }
 
-func (this *FrameHeader) Parse(bs []byte) bool {
+func (this *FrameHeader) Parse(bs []byte) error {
 	if len(bs) < 4 {
-		return false
+		return fmt.Errorf("not enough bytes")
 	}
 	if bs[0] != 0xFF || (bs[1]&0xE0) != 0xE0 {
-		return false
+		return fmt.Errorf("missing sync word, got: %x, %x", bs[0], bs[1])
 	}
 	this.Version = Version((bs[1] >> 3) & 0x03)
 	if this.Version == MPEGReserved {
-		return false
+		return fmt.Errorf("reserved mpeg version")
 	}
 
 	this.Layer = Layer(((bs[1] >> 1) & 0x03))
 	if this.Layer == LayerReserved {
-		return false
+		return fmt.Errorf("reserved layer")
 	}
 
 	this.Protection = (bs[1] & 0x01) != 0x01
 
 	bitrateIdx := (bs[2] >> 4) & 0x0F
 	if bitrateIdx == 0x0F {
-		return false
+		return fmt.Errorf("invalid bitrate: %v", bitrateIdx)
 	}
 	this.Bitrate = bitrates[this.Version][this.Layer][bitrateIdx] * 1000
 	if this.Bitrate == 0 {
-		return false
+		return fmt.Errorf("invalid bitrate: %v", bitrateIdx)
 	}
 
 	sampleRateIdx := (bs[2] >> 2) & 0x03
 	if sampleRateIdx == 0x03 {
-		return false
+		return fmt.Errorf("invalid sample rate: %v", sampleRateIdx)
 	}
 	this.SampleRate = sampleRates[this.Version][sampleRateIdx]
 
@@ -146,25 +147,26 @@ func (this *FrameHeader) Parse(bs []byte) bool {
 
 	this.Emphasis = Emphasis(bs[3] & 0x03)
 	if this.Emphasis == EmphReserved {
-		return false
+		return fmt.Errorf("reserved emphasis")
 	}
 
-	return true
+	return nil
 }
 
 func (this *FrameHeader) Samples() int {
 	return samplesPerFrame[this.Version][this.Layer]
 }
 
-func (this *FrameHeader) Size() int {
+func (this *FrameHeader) Size() int64 {
 	bps := float64(this.Samples()) / 8
 	fsize := (bps * float64(this.Bitrate)) / float64(this.SampleRate)
 	if this.Pad {
 		fsize += float64(slotSize[this.Layer])
 	}
-	return int(fsize)
+	return int64(fsize)
 }
 
 func (this *FrameHeader) Duration() time.Duration {
-	return time.Duration(int64(float64(time.Millisecond) * (1000.0 / float64(this.SampleRate)) * float64(this.Samples())))
+	ms := (1000 / float64(this.SampleRate)) * float64(this.Samples())
+	return time.Duration(time.Duration(float64(time.Millisecond) * ms))
 }

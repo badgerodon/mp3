@@ -16,13 +16,13 @@ func TestID3(t *testing.T) {
 	var id3 ID3V2Header
 
 	for _, test := range valid {
-		if !id3.Parse(test) {
+		if id3.Parse(test) != nil {
 			t.Errorf("Expected valid ID3 tag for: %v", test)
 		}
 	}
 
 	for _, test := range invalid {
-		if id3.Parse(test) {
+		if id3.Parse(test) == nil {
 			t.Errorf("Expected invalid ID3 tag for: %v", test)
 		}
 	}

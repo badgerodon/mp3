@@ -1,58 +1,62 @@
 package mp3
 
 import (
-	"bufio"
+	"fmt"
+	"github.com/badgerodon/ioutil"
 	"io"
 )
 
 type (
 	Frames struct {
-		src    *bufio.Reader
-		offset int64
-		header FrameHeader
-		err    error
+		src           *ioutil.SectionReader
+		offset, count int64
+		header        FrameHeader
+		err           error
 	}
 )
 
 func GetFrames(src io.ReadSeeker) (*Frames, error) {
 	stripped, err := Stripped(src)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to strip src: %v", err)
 	}
 	return &Frames{
-		src: bufio.NewReader(stripped),
+		src:    stripped,
+		offset: 0,
 	}, nil
 }
 
 func (this *Frames) Next() bool {
-	for {
-		bs, err := this.src.Peek(4)
+	var err error
+	if this.count > 0 {
+		// skip to next frame
+		this.offset, err = this.src.Seek(this.offset+this.header.Size(), 0)
 		if err != nil {
-			this.err = err
+			this.err = fmt.Errorf("premature end of frame: %v", err)
 			return false
 		}
-		if this.header.Parse(bs) {
-			for i := 0; i < this.header.Size(); i++ {
-				_, err = this.src.ReadByte()
-				if err != nil {
-					this.err = err
-					return false
-				}
-			}
-			this.offset += int64(this.header.Size())
-			return true
-		} else {
-			this.src.ReadByte()
-		}
 	}
+	bs := make([]byte, 4)
+	_, err = io.ReadAtLeast(this.src, bs, 4)
+	if err != nil {
+		this.err = err
+		return false
+	}
+	err = this.header.Parse(bs)
+	if err != nil {
+		this.err = err
+		return false
+	}
+	this.count++
+	return true
 }
 
-func (this *Frames) Header() FrameHeader {
-	return this.header
+func (this *Frames) Header() *FrameHeader {
+	return &this.header
 }
 
 func (this *Frames) Offset() int64 {
-	return this.offset
+	return this.src.Offset() + this.offset
 }
 
 func (this *Frames) Error() error {
